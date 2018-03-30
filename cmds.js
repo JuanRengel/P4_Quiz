@@ -181,49 +181,55 @@ exports.testCmd = (socket,rl, id) =>{
 
 
 exports.playCmd = (socket,rl) => {
-    let score = 0;
-	let toBeResolved = [];
-	
-	const playOne = () => {
-		return new Promise((resolve,reject) => {
-			
-			if(toBeResolved.length <=0){
-				console.log(socket,"No hay nada mas que preguntar.\nFin del examen. Aciertos:");
-				resolve();
-				return;
-			}
-			let pos = Math.floor(Math.random()*toBeResolved.length);
-			let quiz = toBeResolved[pos];
-			toBeResolved.splice(pos,1);
-			
-			makeQuestion(rl, quiz.question+'? ')
-			.then(answer => {
-				if(answer.toLowerCase().trim() === quiz.answer.toLowerCase().trim()){
-					score++;
-					console.log(socket,"CORRECTO - Lleva ",score, "aciertos");
-					resolve(playOne());
-				} else {
-					console.log(socket,"INCORRECTO.\nFin del examen. Aciertos:");
-					resolve();
-				}	
-			})
-		})
-	}
-	
-	models.quiz.findAll({raw: true})
-	.then(quizzes => {
-		toBeResolved = quizzes;
-	})
-	.then(() => {
-		return playOne();
-	})
-	.catch(error => {
-		console.log(socket,error);
-	})
-	.then(() => {
-		biglog(socket,score,'magenta');
-		rl.prompt();
-	})
+    let score = 0; //preguntas que se han ido acertando
+    let preguntas = [];
+
+    const play = () => {
+        return new Promise((resolve ,reject) => {
+                if (preguntas.length <= 0) {
+                    log(socket,`No hay nada más que preguntar.`);
+                    log(socket,`Fin del juego. Aciertos: ` + score);
+                    biglog(socket,score, 'magenta');
+                    rl.prompt();
+                }
+                let posicion = Math.floor(Math.random() * preguntas.length);
+                let quiz = preguntas[posicion];
+                preguntas.splice(posicion, 1);
+                return makeQuestion(rl, colorize('¿' + quiz.question + '?: ', 'red'))
+                    .then(respuesta => {
+                        if (respuesta.trim().toLowerCase() === quiz.answer.trim().toLowerCase()) {
+                            score = score + 1;
+                            log(socket,`CORRECTO - Lleva ` + score + ` aciertos.`);
+                            play();
+                        }
+                        else {
+                            log(socket,`INCORRECTO.`);
+                            log(socket,`Fin del juego. Aciertos: ` + score);
+                            biglog(socket,score, 'magenta');
+                            rl.prompt();
+                        }
+                    })
+
+        })
+
+    }
+
+    models.quiz.findAll({
+        raw:true,
+    })
+        .then(quizzes =>{
+            preguntas=quizzes;
+        })
+
+        .then(() => {
+            return play();
+        })
+        .catch(error => {
+            errorlog(socket,error.message);
+        })
+        .then(() =>{
+            rl.prompt();
+        })
 };
 
 	
